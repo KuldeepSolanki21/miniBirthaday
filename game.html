@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Gesture Particles - FINAL ANIMATED EDITION</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: sans-serif; color: white; }
+        #video-container {
+            position: absolute; bottom: 20px; left: 20px; width: 220px; height: 165px;
+            border: 3px solid #ff00a6; 
+            border-radius: 12px; overflow: hidden; z-index: 100;
+        }
+        #webcam { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+        #ui { position: absolute; top: 20px; left: 20px; z-index: 101; pointer-events: none; }
+        #status { color: #ffca00; font-weight: bold; font-size: 1.3rem; margin-bottom: 10px; }
+        .guide { background: rgba(255,0,166,0.2); padding: 10px; border-radius: 8px; border-left: 4px solid #ff00a6; }
+        p { margin: 5px 0; font-size: 0.9rem; }
+        b { color: #ff00a6; } 
+    </style>
+</head>
+<body>
+
+    <div id="ui">
+        <div id="status">Status: Loading AI... ⏳</div>
+        <div class="guide">
+            <h2 id="current-shape" style="margin-top:0;">Shape: I Letter 🇮🇳</h2>
+            <p>☝️ <b>Ek Ungli</b></p>
+            <p>👌 <b>Chutki</b></p>
+            <p>✌️ <b>Peace Sign</b></p>
+            <p style="margin-top: 10px;">TARA MATE KAI PAN MARI MINI 🫂 <br> I LOVE YOU 😘🫂  </p>
+        </div>
+    </div>
+
+    <div id="video-container">
+        <video id="webcam" playsinline></video>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    
+    <script type="importmap">
+        { "imports": { 
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+        } }
+    </script>
+    
+    <script type="module">
+        import * as THREE from 'three';
+
+        const PARTICLE_COUNT = 15000;
+        let mouseX = 0, mouseY = 0;
+        let currentMode = ""; 
+        const videoElement = document.getElementById('webcam');
+        const statusText = document.getElementById('status');
+        const shapeLabel = document.getElementById('current-shape');
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+        camera.position.z = 50; 
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        const geo = new THREE.BufferGeometry();
+        const pos = new Float32Array(PARTICLE_COUNT * 3);
+        const targetPos = new Float32Array(PARTICLE_COUNT * 3);
+
+        const setT = (i, x, y, z) => {
+            targetPos[i*3] = x; targetPos[i*3+1] = y; targetPos[i*3+2] = z;
+        };
+        
+        const randomSpherePoint = (r, xOffset = 0, yOffset = 0, zOffset = 0) => {
+            const u = Math.random(), v = Math.random();
+            const theta = 2 * Math.PI * u, phi = Math.acos(2 * v - 1);
+            const radius = r * Math.cbrt(Math.random()); 
+            const x = radius * Math.sin(phi) * Math.cos(theta);
+            const y = radius * Math.sin(phi) * Math.sin(theta);
+            const z = radius * Math.cos(phi);
+            return [x + xOffset, y + yOffset, z + zOffset];
+        };
+        
+        // --- SHAPE GENERATORS (Logic remains same) ---
+        
+        function makeILetter() {
+            if(currentMode === "I_letter") return;
+            currentMode = "I_letter";
+            shapeLabel.innerText = "Shape: Letter I 🇮🇳";
+
+            const segmentCount = PARTICLE_COUNT / 3;
+            let i = 0;
+            const barThickness = 3;
+            const barLength = 20;
+
+            while(i < segmentCount) {
+                const x = (Math.random() - 0.5) * barThickness;
+                const y = (Math.random() - 0.5) * barLength;
+                const z = (Math.random() - 0.5) * barThickness;
+                setT(i++, x, y, z);
+            }
+
+            while(i < segmentCount * 2) {
+                const x = (Math.random() - 0.5) * barLength; 
+                const y = barLength / 2;
+                const z = (Math.random() - 0.5) * barThickness;
+                setT(i++, x, y, z);
+            }
+
+            while(i < PARTICLE_COUNT) {
+                const x = (Math.random() - 0.5) * barLength; 
+                const y = -barLength / 2; 
+                const z = (Math.random() - 0.5) * barThickness;
+                setT(i++, x, y, z);
+            }
+        }
+
+        function makeHeart() {
+            if(currentMode === "heart") return;
+            currentMode = "heart";
+            shapeLabel.innerText = "Shape: Heart ❤️";
+            for(let i=0; i<PARTICLE_COUNT; i++) {
+                const t = Math.random() * Math.PI * 2;
+                const x = 16 * Math.pow(Math.sin(t), 3);
+                const y = 13*Math.cos(t) - 5*Math.cos(2*t) - 2*Math.cos(3*t) - Math.cos(4*t);
+                setT(i, x * 1.1, y * 1.1, (Math.random()-0.5) * 5);
+            }
+        }
+
+        function makeMinnieMouse() {
+            if(currentMode === "minnie") return;
+            currentMode = "minnie";
+            shapeLabel.innerText = "Shape: Minnie Mouse 🎀";
+
+            const total = PARTICLE_COUNT;
+            const pHead = total * 0.60;
+            const pEar = total * 0.20 / 2;
+            const pBow = total * 0.10;
+            const pFace = total * 0.10;
+            
+            let i = 0;
+            const scale = 1.2; 
+            
+            // 1. HEAD
+            while(i < pHead) {
+                const [x, y, z] = randomSpherePoint(18, 0, 0, 0);
+                setT(i++, x * scale, y * scale, z);
+            }
+            // 2. EARS
+            const earRadius = 8;
+            while(i < pHead + pEar) {
+                const [x, y, z] = randomSpherePoint(earRadius, -16, 15, 0);
+                setT(i++, x * scale, y * scale, z);
+            }
+            while(i < pHead + 2 * pEar) {
+                const [x, y, z] = randomSpherePoint(earRadius, 16, 15, 0);
+                setT(i++, x * scale, y * scale, z);
+            }
+            // 3. BOW
+            const bowRadius = 8;
+            const bowY = 25 * scale;
+            while(i < pHead + 2 * pEar + pBow / 2) {
+                const [x, y, z] = randomSpherePoint(bowRadius, -10 * scale, bowY, 0);
+                setT(i++, x, y * 0.5, z * 0.5); 
+            }
+            while(i < pHead + 2 * pEar + pBow) {
+                const [x, y, z] = randomSpherePoint(bowRadius, 10 * scale, bowY, 0);
+                setT(i++, x, y * 0.5, z * 0.5); 
+            }
+            // 4. FACE FEATURES 
+            const eyeRadius = 3;
+            while(i < pHead + 2 * pEar + pBow + pFace / 4) {
+                const [x, y, z] = randomSpherePoint(eyeRadius, -5 * scale, 5 * scale, 12);
+                setT(i++, x, y, z);
+            }
+            while(i < pHead + 2 * pEar + pBow + pFace / 2) {
+                const [x, y, z] = randomSpherePoint(eyeRadius, 5 * scale, 5 * scale, 12);
+                setT(i++, x, y, z);
+            }
+            const noseRadius = 1.5;
+            while(i < pHead + 2 * pEar + pBow + pFace * 3 / 4) {
+                const [x, y, z] = randomSpherePoint(noseRadius, 0, -2 * scale, 14);
+                setT(i++, x, y, z);
+            }
+            while(i < PARTICLE_COUNT) { 
+                const x = (Math.random() - 0.5) * 10 * scale;
+                const y = -7 * scale + Math.abs(x * 0.3) - 2; 
+                setT(i++, x, y, 14); 
+            }
+        }
+
+        // Init
+        makeILetter(); 
+        for(let i=0; i<PARTICLE_COUNT*3; i++) pos[i] = targetPos[i];
+        
+        // Define Materials
+        const color = new THREE.Color(0xff00a6); // Base Pink Color
+        const mat = new THREE.PointsMaterial({ size: 0.18, color: color, transparent: true, blending: THREE.AdditiveBlending }); 
+        
+        geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+        const points = new THREE.Points(geo, mat);
+        scene.add(points);
+
+        async function startAI() {
+            const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
+            hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+            
+            hands.onResults((res) => {
+                if (res.multiHandLandmarks && res.multiHandLandmarks.length > 0) {
+                    statusText.innerText = "Status: Tracking Active ✅";
+                    const lm = res.multiHandLandmarks[0];
+                    
+                    // X and Y movement (Translation)
+                    mouseX = (lm[9].x - 0.5) * -85; 
+                    mouseY = (lm[9].y - 0.5) * -65; 
+
+                    // Gestures
+                    const isIndexUp = lm[8].y < lm[6].y;
+                    const isMiddleUp = lm[12].y < lm[10].y;
+                    const isRingUp = lm[16].y < lm[14].y;
+                    const isPinkyUp = lm[20].y < lm[18].y;
+                    const d = Math.hypot(lm[4].x - lm[8].x, lm[4].y - lm[8].y);
+
+                    // ☝️ Ek Ungli
+                    if(isIndexUp && !isMiddleUp) makeILetter(); 
+                    // 👌 Chutki
+                    else if(d < 0.04) makeHeart(); 
+                    // ✌️ Peace Sign
+                    else if(isIndexUp && isMiddleUp && !isRingUp) makeMinnieMouse(); 
+
+                } else {
+                    statusText.innerText = "Status: Show your hand 👋";
+                }
+            });
+
+            const cameraUtil = new Camera(videoElement, {
+                onFrame: async () => { await hands.send({image: videoElement}); },
+                width: 640, height: 480
+            });
+            cameraUtil.start();
+        }
+        startAI();
+
+        function animate(time) {
+            requestAnimationFrame(animate);
+            
+            // --- NEW ANIMATION LOGIC ---
+            
+            // 1. Particle Pulse & Vibration (Subtle positional wobble)
+            // Pulse the size
+            const pulse = 0.18 + Math.sin(time * 0.005) * 0.03; 
+            points.material.size = pulse;
+
+            // Wobble/Vibration (Affects particle position slightly)
+            const wobbleFactor = 0.05;
+            const target = geo.attributes.position.array;
+            
+            for(let i=0; i<PARTICLE_COUNT * 3; i++) {
+                 // Add subtle noise/vibration based on particle index and time
+                 const noise = (Math.sin(time * 0.001 + i * 0.01) * 0.5) * wobbleFactor;
+                 points.geometry.attributes.position.array[i] = target[i] + noise;
+            }
+            points.geometry.attributes.position.needsUpdate = true;
+
+            // 2. Color Cycle (Pink <-> Blue)
+            // Maps time (0 to 1) to a sine wave for smooth color change
+            const hueShift = Math.sin(time * 0.0005) * 0.5 + 0.5; // Range 0 to 1
+            
+            // Interpolate between Pink (0xff00a6) and Cyan/Blue (0x00ffff)
+            const r = Math.round(0xFF * (1 - hueShift));
+            const g = Math.round(0xFF * hueShift);
+            const b = Math.round(0xFF * hueShift);
+            
+            // Use original pink value to maintain a pink/purple bias
+            const finalColor = new THREE.Color(`rgb(${0xFF}, ${Math.round(g * 0.4)}, ${Math.round(b * 0.8)})`);
+            
+            points.material.color.set(finalColor);
+            
+            // --- END NEW ANIMATION LOGIC ---
+
+            // 3. Position Movement (Translation)
+            points.position.x += (mouseX - points.position.x) * 0.1;
+            points.position.y += (mouseY - points.position.y) * 0.1;
+            
+            // 4. Auto Rotation
+            points.rotation.y += 0.005; 
+            
+            // 5. Camera Fix
+            camera.position.z = 50; 
+            camera.updateProjectionMatrix();
+            
+            // 6. Shape Transition (Slightly slower transition to show vibration better)
+            const p = geo.attributes.position.array;
+            for(let i=0; i<PARTICLE_COUNT*3; i++) {
+                // Apply transition target slightly slower
+                p[i] += (targetPos[i] - p[i]) * 0.08; 
+            }
+            geo.attributes.position.needsUpdate = true;
+            renderer.render(scene, camera);
+        }
+        animate(0); // Pass initial time
+        // Note: The animate function now accepts time 't'
+        
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
